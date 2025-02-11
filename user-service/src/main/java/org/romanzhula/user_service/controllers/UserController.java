@@ -19,7 +19,7 @@ public class UserController {
 
     @GetMapping("/list")
     public ResponseEntity<List<UserResponse>> getAll() {
-        return userService.getAll();
+        return ResponseEntity.ok(userService.getAll());
     }
 
 }
