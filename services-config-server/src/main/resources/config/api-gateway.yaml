@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      default-zone: http://localhost:8761/eureka/
+
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          loverCaseServiceId: true
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: wallet-service
+          uri: lb://wallet-service
+          predicates:
+            - Path=/api/v1/wallets/**
+        - id: journal-service
+          uri: lb://journal-service
+          predicates:
+            - Path=/api/v1/journals/**
+        - id: expenses-service
+          uri: lb://expenses-service
+          predicates:
+            - Path=/api/v1/expenses/**
