@@ -1,5 +1,6 @@
 package org.romanzhula.user_service.services;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.romanzhula.user_service.models.User;
 import org.romanzhula.user_service.repositories.UserRepository;
@@ -20,7 +21,14 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserResponse> getAll() {
         return userRepository.findAll().stream()
-                .map(user -> new UserResponse(user.getId(), user.getUsername()))
+                .map(user -> new UserResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getPhoneNumber(),
+                        user.getEmail()
+                ))
                 .toList()
         ;
     }
@@ -40,6 +48,21 @@ public class UserService {
         userRepository.save(user);
 
         return "User added successfully!";
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(String userId) {
+        return userRepository.findById(Long.valueOf(userId))
+                .map(user -> new UserResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getPhoneNumber(),
+                        user.getEmail()
+                ))
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId))
+        ;
     }
 
 }
