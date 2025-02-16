@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -20,7 +21,7 @@ public class Wallet {
     // TODO: add logic for security verification wallet-vs-user
     @Id
     @Column(name = "user_id", unique = true, updatable = false, nullable = false)
-    private String userId;
+    private UUID userId;
 
     @Column(name = "balance", nullable = false, precision = 12, scale = 2)
     private BigDecimal balance;
