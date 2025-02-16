@@ -3,6 +3,8 @@ package org.romanzhula.user_service.models;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.UUID;
+
 
 @Entity
 @Getter
@@ -14,9 +16,9 @@ import lombok.*;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue
     @Column(name = "user_id", unique = true, updatable = false, nullable = false)
-    private Long id;
+    private UUID id;
 
     @Column(name = "nickname", unique = true, nullable = false)
     private String username;
