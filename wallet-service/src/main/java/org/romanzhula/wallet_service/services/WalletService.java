@@ -5,12 +5,14 @@ import lombok.RequiredArgsConstructor;
 import org.romanzhula.wallet_service.models.Wallet;
 import org.romanzhula.wallet_service.repositories.WalletRepository;
 import org.romanzhula.wallet_service.requests.BalanceUpdateRequest;
+import org.romanzhula.wallet_service.responses.WalletBalanceResponse;
 import org.romanzhula.wallet_service.responses.WalletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +57,7 @@ public class WalletService {
     // temporary method
     public void handleUserCreated(String id) {
         Wallet wallet = new Wallet();
-        wallet.setUserId(id);
+        wallet.setUserId(UUID.randomUUID());
         wallet.setBalance(BigDecimal.valueOf(0.0));
 
         walletRepository.save(wallet);
@@ -70,6 +72,16 @@ public class WalletService {
                         wallet.getBalance()
                 ))
                 .toList()
+        ;
+    }
+
+    @Transactional(readOnly = true)
+    public WalletBalanceResponse getWalletBalanceById(String id) {
+        return walletRepository.findById(id)
+                .map(wallet -> new WalletBalanceResponse(
+                        wallet.getBalance()
+                ))
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found with id: " + id))
         ;
     }
 
