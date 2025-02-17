@@ -2,6 +2,7 @@ package org.romanzhula.wallet_service.controllers;
 
 import lombok.RequiredArgsConstructor;
 import org.romanzhula.wallet_service.requests.BalanceUpdateRequest;
+import org.romanzhula.wallet_service.responses.WalletBalanceResponse;
 import org.romanzhula.wallet_service.responses.WalletResponse;
 import org.romanzhula.wallet_service.services.WalletService;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +25,21 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getWalletById(id));
     }
 
+
     @GetMapping("/all")
     public ResponseEntity<List<WalletResponse>> getAll() {
         return ResponseEntity.ok(walletService.getAll());
     }
 
+
+    @GetMapping("/{wallet-id}/balance") // here we will use user id as wallet id
+    public ResponseEntity<WalletBalanceResponse> getBalanceById(
+            @PathVariable("wallet-id") String id
+    ) {
+        return ResponseEntity.ok(walletService.getWalletBalanceById(id));
+    }
+
+    
     @PostMapping("/up-balance")
     public ResponseEntity<String> updateBalance(
             // TODO: add AuthPrincipal when will be Security
