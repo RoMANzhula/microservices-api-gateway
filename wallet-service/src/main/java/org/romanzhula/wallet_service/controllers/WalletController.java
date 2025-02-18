@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -20,7 +21,7 @@ public class WalletController {
 
     @GetMapping("/{wallet-id}") // here we will use user id as wallet id
     public ResponseEntity<WalletResponse> getWalletById(
-            @PathVariable("wallet-id") String id
+            @PathVariable("wallet-id") UUID id
     ) {
         return ResponseEntity.ok(walletService.getWalletById(id));
     }
@@ -34,7 +35,7 @@ public class WalletController {
 
     @GetMapping("/{wallet-id}/balance") // here we will use user id as wallet id
     public ResponseEntity<WalletBalanceResponse> getBalanceById(
-            @PathVariable("wallet-id") String id
+            @PathVariable("wallet-id") UUID id
     ) {
         return ResponseEntity.ok(walletService.getWalletBalanceById(id));
     }
