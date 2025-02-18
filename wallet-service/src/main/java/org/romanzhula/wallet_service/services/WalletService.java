@@ -22,7 +22,7 @@ public class WalletService {
 
     
     @Transactional(readOnly = true)
-    public WalletResponse getWalletById(String id) {
+    public WalletResponse getWalletById(UUID id) {
         return walletRepository.findById(id)
                 .map(wallet -> new WalletResponse(
                         wallet.getUserId(),
@@ -39,7 +39,7 @@ public class WalletService {
         }
 
         Wallet wallet = walletRepository
-                .findById(request.getId())
+                .findById(UUID.fromString(request.getId()))
                 .orElseThrow(() -> new EntityNotFoundException("Wallet not found with id: " + request.getId()));
 
         if (wallet == null) {
@@ -76,7 +76,7 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public WalletBalanceResponse getWalletBalanceById(String id) {
+    public WalletBalanceResponse getWalletBalanceById(UUID id) {
         return walletRepository.findById(id)
                 .map(wallet -> new WalletBalanceResponse(
                         wallet.getBalance()
