@@ -20,7 +20,7 @@ public class Expense {
     @Column(name = "expense_id", unique = true, updatable = false, nullable = false)
     private Long id;
 
-    @Column(name = "user_id", unique = true, updatable = false, nullable = false)
+    @Column(name = "user_id", updatable = false, nullable = false)
     private UUID userId;
 
     @Column(name = "expense_title")
