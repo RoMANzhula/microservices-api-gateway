@@ -14,5 +14,7 @@ public class ExpenseResponse {
     private UUID userId;
     private String title;
     private BigDecimal amount;
+    private String message;
+    private BigDecimal remainingBalance;
 
 }
