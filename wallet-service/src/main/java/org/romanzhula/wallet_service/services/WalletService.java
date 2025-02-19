@@ -85,4 +85,31 @@ public class WalletService {
         ;
     }
 
+    @Transactional
+    public String deductBalance(BalanceUpdateRequest request) {
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("The deduction amount must be greater than 0.");
+        }
+
+        if (request.getId() == null || request.getId().isEmpty()) {
+            throw new IllegalArgumentException("Wallet ID cannot be null or empty.");
+        }
+
+        UUID walletId = UUID.fromString(request.getId());
+
+        Wallet wallet = walletRepository
+                .findById(walletId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found with id:" + request.getId()))
+        ;
+
+        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new IllegalArgumentException("Insufficient funds in the wallet.");
+        }
+
+        wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
+        walletRepository.save(wallet);
+
+        return "Your balance successfully deducted!";
+    }
+
 }
