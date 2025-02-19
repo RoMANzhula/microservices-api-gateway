@@ -3,6 +3,7 @@ package org.romanzhula.expenses_service.services;
 import lombok.RequiredArgsConstructor;
 import org.romanzhula.expenses_service.models.Expense;
 import org.romanzhula.expenses_service.repositories.ExpenseRepository;
+import org.romanzhula.expenses_service.requests.BalanceUpdateRequest;
 import org.romanzhula.expenses_service.requests.ExpenseRequest;
 import org.romanzhula.expenses_service.responses.ExpenseResponse;
 import org.springframework.core.ParameterizedTypeReference;
@@ -25,9 +26,9 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse addExpense(ExpenseRequest expenseRequest) {
-        String userId = expenseRequest.getUserId().toString();
+        String userId = expenseRequest.getUserId();
         String walletServiceGetBalanceUrl = "http://localhost:8082/api/v1/wallets/" + userId + "/balance";
-        String walletServiceUpdateBalanceUrl = "http://localhost:8082/api/v1/wallets/" + userId + "/deduct-balance";
+        String walletServiceUpdateBalanceUrl = "http://localhost:8082/api/v1/wallets/deduct-balance";
 
         BigDecimal currentBalance = webClient
                 .get()
@@ -56,18 +57,58 @@ public class ExpenseService {
 
         // TODO: add RabbitMQ convertAndSend here to change balance (wallet-service)
 
+        BalanceUpdateRequest balanceUpdateRequest = new BalanceUpdateRequest(userId, expenseAmount);
+
+        String successMessage = webClient
+                .patch()
+                .uri(walletServiceUpdateBalanceUrl)
+                .bodyValue(balanceUpdateRequest)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block()
+        ;
+
+        if (!"Your balance successfully deducted!".equals(successMessage)) {
+            throw new RuntimeException("Failed to update wallet balance");
+        }
+
+        BigDecimal updatedBalance = webClient
+                .get()
+                .uri(walletServiceGetBalanceUrl)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, BigDecimal>>() {})
+                .map(response -> response.get("balance"))
+                .block();
+
+        if (updatedBalance == null) {
+            throw new RuntimeException("Failed to retrieve updated balance");
+        }
+
         return new ExpenseResponse(
                 savedExpense.getId(),
                 savedExpense.getUserId(),
                 savedExpense.getTitle(),
-                savedExpense.getAmount()
+                savedExpense.getAmount(),
+                "Your balance successfully deducted!",
+                updatedBalance
         );
     }
 
 
     @Transactional(readOnly = true)
     public List<ExpenseResponse> getAllExpensesByUserId(String userId) {
-        return expenseRepository.findAllByUserId(UUID.fromString(userId));
+        return expenseRepository.findAllByUserId(UUID.fromString(userId))
+                .stream()
+                .map(expense -> new ExpenseResponse(
+                        expense.getId(),
+                        expense.getUserId(),
+                        expense.getTitle(),
+                        expense.getAmount(),
+                        "",
+                        expense.getAmount()
+                ))
+                .toList()
+        ;
     }
 
 }
