@@ -49,4 +49,11 @@ public class WalletController {
         return ResponseEntity.ok(walletService.updateBalance(request));
     }
 
+    @PatchMapping("/deduct-balance")
+    public ResponseEntity<String> deductBalance(
+            @RequestBody BalanceUpdateRequest request
+    ) {
+        return ResponseEntity.ok(walletService.deductBalance(request));
+    }
+
 }
