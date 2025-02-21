@@ -6,6 +6,7 @@ import org.romanzhula.wallet_service.models.Wallet;
 import org.romanzhula.wallet_service.repositories.WalletRepository;
 import org.romanzhula.wallet_service.requests.BalanceUpdateRequest;
 import org.romanzhula.wallet_service.requests.JournalEntryRequest;
+import org.romanzhula.wallet_service.responses.JournalEntryResponse;
 import org.romanzhula.wallet_service.responses.WalletBalanceResponse;
 import org.romanzhula.wallet_service.responses.WalletResponse;
 import org.springframework.http.MediaType;
@@ -61,17 +62,17 @@ public class WalletService {
                 "Your balance was updated successfully! +" + request.getAmount()
         );
 
-        String successResponse = webClient
+        JournalEntryResponse successResponse = webClient
                 .post()
                 .uri(journalEntryRequestUrl)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(journalEntryRequest)
                 .retrieve()
-                .bodyToMono(String.class)
+                .bodyToMono(JournalEntryResponse.class)
                 .block()
         ;
 
-        if (!"New journal entry was added successfully.".equals(successResponse)) {
+        if (successResponse == null || !"New journal entry was added successfully.".equals(successResponse.getMessage())) {
             throw new RuntimeException("Failed to update wallet balance FOR JOURNAL_SERVICE");
         }
 
