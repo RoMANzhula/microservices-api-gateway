@@ -1,7 +1,10 @@
 package org.romanzhula.journal_service.services;
 
 import lombok.RequiredArgsConstructor;
+import org.romanzhula.journal_service.models.JournalEntry;
 import org.romanzhula.journal_service.repositories.JournalRepository;
+import org.romanzhula.journal_service.requests.JournalEntryRequest;
+import org.romanzhula.journal_service.responses.JournalEntryResponse;
 import org.romanzhula.journal_service.responses.JournalResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,18 @@ public class JournalService {
                 ))
                 .toList()
         ;
+    }
+
+    @Transactional
+    public JournalEntryResponse addNewJournalEntry(JournalEntryRequest journalEntryRequest) {
+        JournalEntry newJournalEntry = new JournalEntry();
+
+        newJournalEntry.setUserId(journalEntryRequest.getUserId());
+        newJournalEntry.setDescription(journalEntryRequest.getDescription());
+
+        journalRepository.save(newJournalEntry);
+
+        return new JournalEntryResponse("New journal entry was added successfully.");
     }
 
 }
