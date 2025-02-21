@@ -5,8 +5,11 @@ import org.romanzhula.expenses_service.models.Expense;
 import org.romanzhula.expenses_service.repositories.ExpenseRepository;
 import org.romanzhula.expenses_service.requests.BalanceUpdateRequest;
 import org.romanzhula.expenses_service.requests.ExpenseRequest;
+import org.romanzhula.expenses_service.requests.JournalEntryRequest;
 import org.romanzhula.expenses_service.responses.ExpenseResponse;
+import org.romanzhula.expenses_service.responses.JournalEntryResponse;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,6 +32,7 @@ public class ExpenseService {
         String userId = expenseRequest.getUserId();
         String walletServiceGetBalanceUrl = "http://localhost:8082/api/v1/wallets/" + userId + "/balance";
         String walletServiceUpdateBalanceUrl = "http://localhost:8082/api/v1/wallets/deduct-balance";
+        String journalEntryRequestUrl = "http://localhost:8083/api/v1/journal/add";
 
         BigDecimal currentBalance = webClient
                 .get()
@@ -83,6 +87,27 @@ public class ExpenseService {
         if (updatedBalance == null) {
             throw new RuntimeException("Failed to retrieve updated balance");
         }
+
+        JournalEntryRequest journalEntryRequest = new JournalEntryRequest(
+                UUID.fromString(userId),
+                "Your balance was updated successfully! +" + expenseAmount
+        );
+
+        JournalEntryResponse successResponse = webClient
+                .post()
+                .uri(journalEntryRequestUrl)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(journalEntryRequest)
+                .retrieve()
+                .bodyToMono(JournalEntryResponse.class)
+                .block();
+
+        if (!"New journal entry was added successfully.".equals(successResponse.getMessage())) {
+            throw new RuntimeException(
+                    "Failed to update wallet balance FOR JOURNAL_SERVICE. Response: " + successResponse.getMessage()
+            );
+        }
+
 
         return new ExpenseResponse(
                 savedExpense.getId(),
