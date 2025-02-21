@@ -5,10 +5,13 @@ import lombok.RequiredArgsConstructor;
 import org.romanzhula.wallet_service.models.Wallet;
 import org.romanzhula.wallet_service.repositories.WalletRepository;
 import org.romanzhula.wallet_service.requests.BalanceUpdateRequest;
+import org.romanzhula.wallet_service.requests.JournalEntryRequest;
 import org.romanzhula.wallet_service.responses.WalletBalanceResponse;
 import org.romanzhula.wallet_service.responses.WalletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.UUID;
 public class WalletService {
 
     private final WalletRepository walletRepository;
+    private final WebClient webClient;
 
     
     @Transactional(readOnly = true)
@@ -34,6 +38,8 @@ public class WalletService {
 
     @Transactional
     public String updateBalance(BalanceUpdateRequest request) {
+        String journalEntryRequestUrl = "http://localhost:8083/api/v1/journal/add";
+
         if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("The top-up amount must be greater than 0.");
         }
@@ -49,6 +55,25 @@ public class WalletService {
         }
 
         walletRepository.save(wallet);
+
+        JournalEntryRequest journalEntryRequest = new JournalEntryRequest(
+                UUID.fromString(request.getId()),
+                "Your balance was updated successfully! +" + request.getAmount()
+        );
+
+        String successResponse = webClient
+                .post()
+                .uri(journalEntryRequestUrl)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(journalEntryRequest)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block()
+        ;
+
+        if (!"New journal entry was added successfully.".equals(successResponse)) {
+            throw new RuntimeException("Failed to update wallet balance FOR JOURNAL_SERVICE");
+        }
 
         return "Your balance was updated successfully!";
     }
