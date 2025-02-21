@@ -8,6 +8,7 @@ import org.romanzhula.expenses_service.requests.ExpenseRequest;
 import org.romanzhula.expenses_service.requests.JournalEntryRequest;
 import org.romanzhula.expenses_service.responses.ExpenseResponse;
 import org.romanzhula.expenses_service.responses.JournalEntryResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -23,91 +24,32 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ExpenseService {
 
+    @Value("${wallet.service.getBalanceUrl}")
+    private String walletServiceGetBalanceUrl;
+
+    @Value("${wallet.service.updateBalanceUrl}")
+    private String walletServiceUpdateBalanceUrl;
+
+    @Value("${journal.service.addEntryUrl}")
+    private String journalEntryRequestUrl;
+
     private final WebClient webClient;
     private final ExpenseRepository expenseRepository;
 
 
     @Transactional
     public ExpenseResponse addExpense(ExpenseRequest expenseRequest) {
-        String userId = expenseRequest.getUserId();
-        String walletServiceGetBalanceUrl = "http://localhost:8082/api/v1/wallets/" + userId + "/balance";
-        String walletServiceUpdateBalanceUrl = "http://localhost:8082/api/v1/wallets/deduct-balance";
-        String journalEntryRequestUrl = "http://localhost:8083/api/v1/journal/add";
-
-        BigDecimal currentBalance = webClient
-                .get()
-                .uri(walletServiceGetBalanceUrl)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, BigDecimal>>() {})
-                .map(response -> response.get("balance"))
-                .block();
-
-        if (currentBalance == null) {
-            throw new RuntimeException("Failed to retrieve user balance");
-        }
-
+        UUID userId = UUID.fromString(expenseRequest.getUserId());
         BigDecimal expenseAmount = expenseRequest.getAmount();
 
-        if (currentBalance.compareTo(expenseAmount) < 0) {
-            throw new IllegalArgumentException("Insufficient funds for the expense");
-        }
+        BigDecimal currentBalance = fetchUserBalance(userId);
+        validateSufficientFunds(currentBalance, expenseAmount);
 
-        Expense expense = new Expense();
-        expense.setUserId(UUID.fromString(expenseRequest.getUserId()));
-        expense.setTitle(expenseRequest.getTitle());
-        expense.setAmount(expenseAmount);
+        Expense savedExpense = saveExpense(userId, expenseRequest.getTitle(), expenseAmount);
+        updateWalletBalance(userId, expenseAmount);
 
-        Expense savedExpense = expenseRepository.save(expense);
-
-        // TODO: add RabbitMQ convertAndSend here to change balance (wallet-service)
-
-        BalanceUpdateRequest balanceUpdateRequest = new BalanceUpdateRequest(userId, expenseAmount);
-
-        String successMessage = webClient
-                .patch()
-                .uri(walletServiceUpdateBalanceUrl)
-                .bodyValue(balanceUpdateRequest)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block()
-        ;
-
-        if (!"Your balance successfully deducted!".equals(successMessage)) {
-            throw new RuntimeException("Failed to update wallet balance");
-        }
-
-        BigDecimal updatedBalance = webClient
-                .get()
-                .uri(walletServiceGetBalanceUrl)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, BigDecimal>>() {})
-                .map(response -> response.get("balance"))
-                .block();
-
-        if (updatedBalance == null) {
-            throw new RuntimeException("Failed to retrieve updated balance");
-        }
-
-        JournalEntryRequest journalEntryRequest = new JournalEntryRequest(
-                UUID.fromString(userId),
-                "Your balance was updated successfully! +" + expenseAmount
-        );
-
-        JournalEntryResponse successResponse = webClient
-                .post()
-                .uri(journalEntryRequestUrl)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(journalEntryRequest)
-                .retrieve()
-                .bodyToMono(JournalEntryResponse.class)
-                .block();
-
-        if (!"New journal entry was added successfully.".equals(successResponse.getMessage())) {
-            throw new RuntimeException(
-                    "Failed to update wallet balance FOR JOURNAL_SERVICE. Response: " + successResponse.getMessage()
-            );
-        }
-
+        BigDecimal updatedBalance = fetchUserBalance(userId);
+        recordJournalEntry(userId, expenseAmount);
 
         return new ExpenseResponse(
                 savedExpense.getId(),
@@ -132,8 +74,74 @@ public class ExpenseService {
                         "",
                         expense.getAmount()
                 ))
-                .toList()
+                .toList();
+    }
+
+
+    private BigDecimal fetchUserBalance(UUID userId) {
+        String getBalanceUrl = walletServiceGetBalanceUrl.replace("{userId}", userId.toString());
+
+        return webClient.get()
+                .uri(getBalanceUrl)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, BigDecimal>>() {})
+                .map(response -> response.get("balance"))
+                .blockOptional()
+                .orElseThrow(() -> new RuntimeException("Failed to retrieve user balance"))
         ;
+    }
+
+
+    private void validateSufficientFunds(BigDecimal balance, BigDecimal expenseAmount) {
+        if (balance.compareTo(expenseAmount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds for the expense");
+        }
+    }
+
+
+    private Expense saveExpense(UUID userId, String title, BigDecimal amount) {
+        Expense expense = new Expense();
+        expense.setUserId(userId);
+        expense.setTitle(title);
+        expense.setAmount(amount);
+        return expenseRepository.save(expense);
+    }
+
+
+    private void updateWalletBalance(UUID userId, BigDecimal expenseAmount) {
+        BalanceUpdateRequest balanceUpdateRequest = new BalanceUpdateRequest(userId.toString(), expenseAmount);
+
+        String responseMessage = webClient.patch()
+                .uri(walletServiceUpdateBalanceUrl)
+                .bodyValue(balanceUpdateRequest)
+                .retrieve()
+                .bodyToMono(String.class)
+                .blockOptional()
+                .orElseThrow(() -> new RuntimeException("Failed to update wallet balance"))
+        ;
+
+        if (!"Your balance successfully deducted!".equals(responseMessage)) {
+            throw new RuntimeException("Wallet service failed to deduct balance");
+        }
+    }
+
+    private void recordJournalEntry(UUID userId, BigDecimal expenseAmount) {
+        JournalEntryRequest journalEntryRequest = new JournalEntryRequest(
+                userId, "Your balance was updated successfully! -" + expenseAmount);
+
+        JournalEntryResponse response = webClient.post()
+                .uri(journalEntryRequestUrl)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(journalEntryRequest)
+                .retrieve()
+                .bodyToMono(JournalEntryResponse.class)
+                .blockOptional()
+                .orElseThrow(() -> new RuntimeException("Failed to add journal entry"))
+        ;
+
+        if (!"New journal entry was added successfully.".equals(response.getMessage())) {
+            throw new RuntimeException("Journal service error: " + response.getMessage());
+        }
     }
 
 }
