@@ -123,7 +123,7 @@ This project is a microservices-based architecture built with Spring Boot and Sp
 The application retrieves configurations from the Config Server. Ensure that the `application.yml` or `bootstrap.yml` files are properly set up to connect to the Config Server.
 
 ## Database Setup
-1. Install PostgreSQL and create required databases for each service.
+1. Install PostgreSQL and create required databases for each service (or you can use one common DB).
 2. Update the `application.properties` or `application.yml` in each service with the correct database credentials.
 3. Run database migrations (if applicable).
 
